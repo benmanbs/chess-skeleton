@@ -1,10 +1,17 @@
 package chess;
 
 
+import chess.moves.CheckChecker;
+import chess.moves.Move;
+import chess.moves.MoveChecker;
+import chess.moves.MoveCheckerFactory;
 import chess.pieces.*;
 
 import java.util.HashMap;
+import java.util.LinkedList;
+import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 
 /**
  * Class that represents the current state of the game.  Basically, what pieces are in which positions on the
@@ -28,9 +35,65 @@ public class GameState {
     public GameState() {
         positionToPieceMap = new HashMap<Position, Piece>();
     }
+    
+    /**
+     * Create game state from string formatted like this:
+     * +---+---+---+---+---+---+---+---+
+     * | R | N | B | Q | K | B | N | R | 
+     * +---+---+---+---+---+---+---+---+
+     * | P | P | P | P | P | P | P | P |
+     * +---+---+---+---+---+---+---+---+
+     * |   |   |   |   |   |   |   |   | 
+     * +---+---+---+---+---+---+---+---+
+     * |   |   |   |   |   |   |   |   | 
+     * +---+---+---+---+---+---+---+---+
+     * |   |   |   |   |   |   |   |   | 
+     * +---+---+---+---+---+---+---+---+
+     * |   |   |   |   |   |   |   |   | 
+     * +---+---+---+---+---+---+---+---+
+     * | p | p | p | p | p | p | p | p | 
+     * +---+---+---+---+---+---+---+---+
+     * | r | n | b | q | k | b | n | r | 
+     * +---+---+---+---+---+---+---+---+
+     * @param board
+     */
+    public GameState(String board) {
+    	this(generateMapFromString(board));
+    }
+    
+    public GameState(Map<Position, Piece> piecesToPlace) {
+    	positionToPieceMap = new HashMap<Position, Piece>();
+    	for(Entry<Position, Piece> entry : piecesToPlace.entrySet()){
+    		placePiece(entry.getValue(),entry.getKey());
+    	}
+    }
+    
+    private static Map<Position, Piece> generateMapFromString(String board) {
+    	Map<Position, Piece> map = new HashMap<Position, Piece> ();
+    	PieceFactory factory = new PieceFactory();
+    	for(int i = 35,z=1; i < board.length();i+=4,z++) {
+    		char c = board.charAt(i);
+    		if(c!=' ')
+    			map.put(new Position((char)(97+(z+7)%8),(z-1)/-8+8),factory.getPiece(c));
+    		if (z%8==0)
+    			i+=34;
+    	}
+    	
+    	return map;
+    }
 
     public Player getCurrentPlayer() {
         return currentPlayer;
+    }
+    
+    public Map<Position, Piece> getGameBoardImmutable() {
+    	Map<Position, Piece> newMap = new HashMap<Position, Piece>();
+    	newMap.putAll(positionToPieceMap);
+    	return newMap;
+    }
+    
+    public void changePlayer() {
+    	currentPlayer = currentPlayer==Player.Black ? Player.White : Player.Black;
     }
 
     /**
@@ -100,5 +163,52 @@ public class GameState {
      */
     private void placePiece(Piece piece, Position position) {
         positionToPieceMap.put(position, piece);
+    }
+    
+    public List<Move> listAllMoves() {
+    	return listAllMoves(currentPlayer,true);
+    }
+    
+    public List<Move> listAllMoves(Player p, boolean checkCheck) {
+    	List<Move> moves = new LinkedList<Move>();
+    	for(Entry<Position,Piece> entry : positionToPieceMap.entrySet()) {
+    		if(entry.getValue().getOwner()==p)
+    			moves.addAll(listAllMoves(entry.getValue(),entry.getKey(),checkCheck));
+    	}
+    	return moves;
+    }
+    
+    private List<Move> listAllMoves(Piece p, Position pos, boolean checkCheck) {
+    	MoveCheckerFactory factory = new MoveCheckerFactory(this);
+    	MoveChecker checker=factory.getMoveChecker(p);
+    	return checker.getAllMoves(p,pos,checkCheck);
+    }
+    
+    public boolean executeMove(Move move) {
+    	return executeMove(move, true);
+    }
+    
+    public boolean executeMove(Move move, boolean checkCheck) {
+    	Piece p = getPieceAt(move.getOrigin());
+    	if (p==null)
+    		return false;
+    	MoveCheckerFactory factory = new MoveCheckerFactory(this);
+    	if(factory.getMoveChecker(p).getAllMoves(p, move.getOrigin(), checkCheck).contains(move)){
+    		doMove(move,p);
+    		changePlayer();
+    		return true;
+    	} else {
+    		return false;
+    	}
+    }
+    
+    public void doMove(Move move, Piece p) {
+    	positionToPieceMap.remove(move.getOrigin());
+		positionToPieceMap.put(move.getDestination(), p);
+    }
+    
+    public boolean checkIfInCheck(Player p) {
+    	CheckChecker checker = new CheckChecker(this);
+    	return checker.checkCheck(p);
     }
 }

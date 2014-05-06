@@ -1,11 +1,19 @@
 package chess;
 
+import chess.moves.Move;
 import chess.pieces.Piece;
 
 import java.io.*;
+import java.util.List;
 
 /**
  * This class provides the basic CLI interface to the Chess game.
+ * 
+ * TODO
+ * 1. move checkmate and stalemate checking logic to GameState
+ * 2. add legal draw cases where there are still moves (i.e. only two kings left)
+ * 3. tests tests tests
+ * 
  */
 public class CLI {
     private static final String NEWLINE = System.getProperty("line.separator");
@@ -48,6 +56,13 @@ public class CLI {
 
         while (true) {
             showBoard();
+        	if(gameState.listAllMoves().isEmpty()){
+        		if(gameState.checkIfInCheck(gameState.getCurrentPlayer()))
+        			writeOutput("The game is over.  Congrats to " + (gameState.getCurrentPlayer()==Player.Black?"White":"Black") + ".");
+        		else
+        			writeOutput("The game is over. Stalemate");
+        		System.exit(0);
+        	}
             writeOutput(gameState.getCurrentPlayer() + "'s Move");
 
             String input = getInput();
@@ -64,9 +79,17 @@ public class CLI {
                 } else if (input.equals("board")) {
                     writeOutput("Current Game:");
                 } else if (input.equals("list")) {
-                    writeOutput("====> List Is Not Implemented (yet) <====");
+                	//List all moves.
+                    showMoves(gameState.listAllMoves());
                 } else if (input.startsWith("move")) {
-                    writeOutput("====> Move Is Not Implemented (yet) <====");
+                    String[] command = input.split(" ");
+                    boolean moved = gameState.executeMove(new Move(new Position(command[1]),new Position(command[2])));
+                    if(!moved) {
+                    	writeOutput("Illegal move.");
+                    } else {
+                        if(gameState.checkIfInCheck(gameState.getCurrentPlayer()))
+                        	writeOutput("Check");
+                    }
                 } else {
                     writeOutput("I didn't understand that.  Type 'help' for a list of commands.");
                 }
@@ -91,6 +114,12 @@ public class CLI {
         writeOutput("    'board'                      Show the chess board");
         writeOutput("    'list'                       List all possible moves");
         writeOutput("    'move <colrow> <colrow>'     Make a move");
+    }
+    
+    private void showMoves(List<Move> moves) {
+    	for(Move m : moves) {
+    		writeOutput(m.toString());
+    	}
     }
 
     /**
