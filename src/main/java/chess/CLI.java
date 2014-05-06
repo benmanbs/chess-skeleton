@@ -93,7 +93,7 @@ public class CLI {
                 } else if (input.startsWith("save")) {
                     //do stuff
                 } else if (input.startsWith("load")) {
-                    //do stuff
+                    //do load stuff
                 } else {
                     writeOutput("I didn't understand that.  Type 'help' for a list of commands.");
                 }
