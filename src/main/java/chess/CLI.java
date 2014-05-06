@@ -90,6 +90,8 @@ public class CLI {
                         if(gameState.checkIfInCheck(gameState.getCurrentPlayer()))
                         	writeOutput("Check");
                     }
+                } else if (input.startsWith("save")) {
+                    //do stuff
                 } else {
                     writeOutput("I didn't understand that.  Type 'help' for a list of commands.");
                 }
