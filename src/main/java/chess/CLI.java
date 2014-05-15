@@ -17,6 +17,7 @@ import java.util.List;
  */
 public class CLI {
     private static final String NEWLINE = System.getProperty("line.separator");
+    private static final String SAVED_GAMES_LOCATION = System.getProperty("user.dir") + "/__SAVED-GAMES__";
 
     private final BufferedReader inReader;
     private final PrintStream outStream;
@@ -91,9 +92,11 @@ public class CLI {
                         	writeOutput("Check");
                     }
                 } else if (input.startsWith("save")) {
-                    //do stuff
+                    String name = input.split(" ")[1];
+                    doWriteGameToFile(name);
                 } else if (input.startsWith("load")) {
-                    //do load stuff
+                    String name = input.split(" ")[1];
+                    doCreateGameFromFile(name);
                 } else {
                     writeOutput("I didn't understand that.  Type 'help' for a list of commands.");
                 }
@@ -106,8 +109,55 @@ public class CLI {
         gameState.reset();
     }
 
+    private void doWriteGameToFile(String name) {
+        //Create saves directory if it doesn't exist
+        new File(SAVED_GAMES_LOCATION).mkdirs();
+
+        Writer writer = null;
+        try {
+            writer = new BufferedWriter(new OutputStreamWriter(
+                    new FileOutputStream(SAVED_GAMES_LOCATION + "/" + name + ".txt"), "utf-8"));
+            writer.write("player:" + gameState.getCurrentPlayer() + "\n");
+            writer.write(getBoardAsString(false));
+        } catch (IOException ex) {
+            // report
+        } finally {
+            try {writer.close();} catch (Exception ex) {}
+        }
+    }
+
+    private void doCreateGameFromFile(String name) {
+        BufferedReader reader = null;
+        try {
+            reader = new BufferedReader(new FileReader(SAVED_GAMES_LOCATION + "/" + name + ".txt"));
+            StringBuilder sb = new StringBuilder();
+            String line = reader.readLine();
+            //strip out player
+            boolean black = false;
+            if(line.startsWith("player")) {
+                black = line.contains("Black");
+                line = reader.readLine();
+            }
+
+            while (line != null) {
+                sb.append(line);
+                line = reader.readLine();
+            }
+            gameState = new GameState(sb.toString());
+            if(black) {
+                gameState.changePlayer();
+            }
+        } catch(FileNotFoundException e){
+            writeOutput("Invalid game name provided");
+        } catch (IOException e) {
+            e.printStackTrace();
+        } finally {
+            try {reader.close();} catch (Exception ex) {}
+        }
+    }
+
     private void showBoard() {
-        writeOutput(getBoardAsString());
+        writeOutput(getBoardAsString(true));
     }
 
     private void showCommands() {
@@ -129,36 +179,52 @@ public class CLI {
     /**
      * Display the board for the user(s)
      */
-    String getBoardAsString() {
+    String getBoardAsString(boolean labels) {
         StringBuilder builder = new StringBuilder();
-        builder.append(NEWLINE);
 
-        printColumnLabels(builder);
+        if(labels) {
+            builder.append(NEWLINE);
+            printColumnLabels(builder);
+        }
         for (int i = Position.MAX_ROW; i >= Position.MIN_ROW; i--) {
-            printSeparator(builder);
-            printSquares(i, builder);
+            printSeparator(builder, labels);
+            printSquares(i, builder, labels);
         }
 
-        printSeparator(builder);
-        printColumnLabels(builder);
+        printSeparator(builder, labels);
+        if(labels) {
+            printColumnLabels(builder);
+        }
 
         return builder.toString();
     }
 
 
-    private void printSquares(int rowLabel, StringBuilder builder) {
-        builder.append(rowLabel);
+    private void printSquares(int rowLabel, StringBuilder builder, boolean labels) {
+        if(labels) {
+            builder.append(rowLabel).append(" ");
+        }
+
+        builder.append("| ");
 
         for (char c = Position.MIN_COLUMN; c <= Position.MAX_COLUMN; c++) {
             Piece piece = gameState.getPieceAt(String.valueOf(c) + rowLabel);
             char pieceChar = piece == null ? ' ' : piece.getIdentifier();
-            builder.append(" | ").append(pieceChar);
+            builder.append(pieceChar).append(" | ");
         }
-        builder.append(" | ").append(rowLabel).append(NEWLINE);
+        if(labels) {
+            builder.append(rowLabel);
+        } else {
+            builder.deleteCharAt(builder.length()-1);
+        }
+        builder.append(NEWLINE);
     }
 
-    private void printSeparator(StringBuilder builder) {
-        builder.append("  +---+---+---+---+---+---+---+---+").append(NEWLINE);
+    private void printSeparator(StringBuilder builder, boolean labels) {
+        if(labels) {
+            builder.append("  ");
+        }
+        builder.append("+---+---+---+---+---+---+---+---+").append(NEWLINE);
     }
 
     private void printColumnLabels(StringBuilder builder) {
